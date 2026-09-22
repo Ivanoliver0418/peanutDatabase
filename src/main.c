@@ -1,125 +1,74 @@
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 
-#define MAX_GAMES 100
-#define MAX_MOVES 10000
-#define MAX_NOTATION_LENGTH 15
+#define USER_ID_SIZE 4
+#define USER_AGE_SIZE 4
+#define USER_NAME_SIZE 32
 
-typedef enum {
-    PLAYER_WHITE,
-    PLAYER_BLACK
-} Player;
+#define USER_ID_OFFSET 0
+#define USER_AGE_OFFSET 4
+#define USER_NAME_OFFSET 8
 
-typedef enum {
-    GAME_ACTIVE,
-    GAME_COMPLETED
-} GameStatus;
+#define USER_RECORD_SIZE 40
 
 typedef struct {
-    int id;
+    uint32_t id;
+    uint32_t age;
+    char name[USER_NAME_SIZE];
+} User;
 
-    long initial_clock_ms;
-    long increment_ms;
-
-    GameStatus status;
-
-    char result[8];
-} Game;
-
-typedef struct {
-    int game_id;
-
-    int ply;
-
-    Player player;
-
-    char notation[16];
-
-    long white_clock_ms;
-    long black_clock_ms;
-
-    long press_elapsed_ms;
-} Move;
-
-typedef struct {
-    Game games[MAX_GAMES];
-    
-    size_t game_count;
-
-    Move moves[MAX_MOVES];
-
-    size_t move_count;
-
-    int active_game_id;
-} Database;
-
-/* Prints the peanutDatabase prompt. */
- static void print_prompt(void) {
-     printf("peanutDB> ");
-     fflush(stdout);
- }
-
-/* Converts a player enum to text. */
-
-static const char *player_name(Player player) {
-    
-    return player == PLAYER_WHITE ? "White" : "Black";
-
+void write_u32_le(unsigned char *dest, uint32_t value)
+{
+    dest[0] = value & 0xFF;
+    dest[1] = (value >> 8) & 0xFF;
+    dest[2] = (value >> 16) & 0xFF;
+    dest[3] = (value >> 24) & 0xFF;
 }
 
-/* Converts text into a player enum. */
-static int parse_player(const char *text, Player player) {
+void serialize_user(const User *user, unsigned char *buffer)
+{
+    write_u32_le(buffer + USER_ID_OFFSET, user->id);
+
+    write_u32_le(buffer + USER_AGE_OFFSET, user->age);
+
+    memcpy(buffer + USER_NAME_OFFSET, user->name, USER_NAME_SIZE);
+}
+
+uint32_t read_u32_le(const unsigned char *src)
+{
+    return (uint32_t)src[0] |
+           ((uint32_t)src[1] << 8) |
+           ((uint32_t)src[2] << 16) |
+           ((uint32_t)src[3] << 24);
+}
+
+void deserialize_user(const unsigned char *buffer, User *user)
+{
+    user->id = read_u32_le(buffer + USER_ID_OFFSET);
+
+    user->age = read_u32_le(buffer + USER_AGE_OFFSET);
+
+    memcpy(user->name, buffer + USER_NAME_OFFSET, USER_NAME_SIZE);
+}
+
+int main(void)
+{
+    User original;
+    User restored;
+    unsigned char buffer[USER_RECORD_SIZE] = {0};
+
+    original.id = 42;
+    original.age = 21;
+    strcpy(original.name, "Ivan");
+
+    serialize_user(&original, buffer);
     
-    if (strcmp(text, "white") == 0) {
-        
-        *player = PLAYER_WHITE;
-        
-        return 0;
-    }
+    deserialize_user(buffer, &restored);
 
-    if (strcmp(text, "black") == 0) {
-        
-        *player = PLAYER_BLACK;
-        
-        return 0;
-    }
+    printf("id: %u\n", restored.id);
+    printf("age: %u\n", restored.age);
+    printf("name: %s\n", restored.name);
 
-    return -1
-}
-
-/* Prints milliseconds as MM:SS:mmm. */
-
-static void print_clock(long milliseconds) {
-
-    long minutes;
-    long seconds;
-    long millis;
-
-    minutes = milliseconds / 60000;
-
-    seconds = (milliseconds / 1000) % 60;
-
-    millis = milliseconds % 1000;
-
-    printf("%02ld:%02ld.%03ld", minutes, seconds, millis);
-}
-
-static Game *find_game(Database *db, int game_id) {
-
-    size_t i;
-
-    for (i = 0; i < db->game_count; i++) {
-
-        if (db->games[i].id == game_id) {
-
-            return &db->games[i];
-        }
-    }
-
-    return NULL;
-}
-
-int main(void) {
-    
     return 0;
 }
