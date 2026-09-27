@@ -49,28 +49,21 @@ void deserialize_user(const unsigned char *buffer, User *user)
 
 int main(void)
 {
-    FILE *file;
-    unsigned char buffer[USER_RECORD_SIZE];
+    char input[128];
 
-    User user;
+    while (1) {
+        printf("peanutdb> ");
 
-    file = fopen("peanut.db", "rb");
-
-    if (file == NULL) {
-        printf("Could not open database\n");
-        return 1;
-    }
-
-    while (fread(buffer, USER_RECORD_SIZE, 1, file) == 1) {
-        deserialize_user(buffer, &user);
-
-        if (user.id == 19) {
-            printf("Found Maria!\n");
+        if (fgets(input, sizeof(input), stdin) == NULL) {
             break;
         }
-    }
 
-    fclose(file);
+        if (strcmp(input, "exit\n") == 0) {
+            break;
+        }
+
+        printf("You entered: %s", input);
+    }
 
     return 0;
 }
