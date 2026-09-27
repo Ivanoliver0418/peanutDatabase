@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 
 #include "main.h"
 
@@ -48,21 +49,28 @@ void deserialize_user(const unsigned char *buffer, User *user)
 
 int main(void)
 {
-    User original;
-    User restored;
-    unsigned char buffer[USER_RECORD_SIZE] = {0};
+    FILE *file;
+    unsigned char buffer[USER_RECORD_SIZE];
 
-    original.id = 42;
-    original.age = 21;
-    strcpy(original.name, "Ivan");
+    User user;
 
-    serialize_user(&original, buffer);
-    
-    deserialize_user(buffer, &restored);
+    file = fopen("peanut.db", "rb");
 
-    printf("id: %u\n", restored.id);
-    printf("age: %u\n", restored.age);
-    printf("name: %s\n", restored.name);
+    if (file == NULL) {
+        printf("Could not open database\n");
+        return 1;
+    }
+
+    while (fread(buffer, USER_RECORD_SIZE, 1, file) == 1) {
+        deserialize_user(buffer, &user);
+
+        if (user.id == 19) {
+            printf("Found Maria!\n");
+            break;
+        }
+    }
+
+    fclose(file);
 
     return 0;
 }
