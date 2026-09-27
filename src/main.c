@@ -1,22 +1,16 @@
 #include <stdio.h>
-#include <stdint.h>
 #include <string.h>
+
+#include "main.h"
 
 #define USER_ID_SIZE 4
 #define USER_AGE_SIZE 4
-#define USER_NAME_SIZE 32
 
 #define USER_ID_OFFSET 0
 #define USER_AGE_OFFSET 4
 #define USER_NAME_OFFSET 8
 
 #define USER_RECORD_SIZE 40
-
-typedef struct {
-    uint32_t id;
-    uint32_t age;
-    char name[USER_NAME_SIZE];
-} User;
 
 void write_u32_le(unsigned char *dest, uint32_t value)
 {
