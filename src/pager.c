@@ -52,3 +52,67 @@ Pager *pager_open(const char *filename)
     pager->file = file;
     pager->page_count = page_count;
 }
+
+int pager_read_page(Pager *pager, uint32_t page_id, unsigned char *page)
+{
+    long offset;
+
+    /* page id starts from 0 */
+    if (page_id >= pager->count) {
+        return 0;
+    }
+    
+    offset = page_id * PAGE_SIZE;
+
+    /* Checks for cursor */
+    if (fseek(pager->file, offset, SEEK_SET) != 0) {
+        return 0;
+    }
+
+    if (fread(file, PAGE_SIZE, 1, pager->file) != 1) {
+        return 0;
+    }
+
+    return 1;
+}
+
+int pager_write_page(Pager *pager, uint32_t page_id, const unsigned char *page)
+{
+    long offset;
+
+    /* page id starts from 0 */
+    if (page_id > page_count) {
+        return 0;
+    }
+
+    offset = page_id * PAGE_SIZE;
+
+    if (fseek(pager->file, offset, SEEK_SET) != 0) {
+        return 0;
+    }
+
+    if (fwrite(page, PAGE_SIZE, 1, pager->file) != 1) {
+        return 0;
+    }
+
+    fflush(pager->file);
+
+    if (page_id == pager->page_count) {
+        pager->page_count++;
+    }
+
+    return 1;
+}
+
+void pager_close(Pager *pager)
+{
+    if (pager == NULL) {
+        return NULL;
+    }
+
+    if (pager->file != NULL) {
+        fclose(pager->file);
+    }
+
+    free(pager);
+}
