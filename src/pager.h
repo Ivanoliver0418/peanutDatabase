@@ -26,7 +26,6 @@ typedef struct {
 
 typedef struct {
     Pager* pager;
-    uint32_t num_rows;
 } Table;
 
 Pager *pager_open(const char *filename);
@@ -37,6 +36,6 @@ int pager_write_page(Pager *pager, uint32_t page_id, const unsigned char *page);
 
 void pager_close(Pager *pager);
 
-Table* db_open(const char *filename);
+void* get_pager(Pager* pager, uint32_t page_id);
 
 #endif
