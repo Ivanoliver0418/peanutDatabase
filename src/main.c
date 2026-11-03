@@ -3,15 +3,7 @@
 #include <stdint.h>
 
 #include "main.h"
-
-#define USER_ID_SIZE 4
-#define USER_AGE_SIZE 4
-
-#define USER_ID_OFFSET 0
-#define USER_AGE_OFFSET 4
-#define USER_NAME_OFFSET 8
-
-#define USER_RECORD_SIZE 40
+#include "pager.h"
 
 void write_u32_le(unsigned char *dest, uint32_t value)
 {
@@ -47,23 +39,78 @@ void deserialize_user(const unsigned char *buffer, User *user)
     memcpy(user->name, buffer + USER_NAME_OFFSET, USER_NAME_SIZE);
 }
 
+int read_page(FILE *file, uint32_t page_id, unsigned char *page)
+{
+    long offset;
+
+    offset = (long)page_id * PAGE_SIZE;
+
+    if (fseek(file, offset, SEEK_SET) != 0) {
+        return 0;
+    }
+
+    if (fread(page, PAGE_SIZE, 1, file) != 1) {
+        return 0;
+    }
+
+    return 1;
+}
+
+int write_page(FILE *file, uint32_t page_id, const unsigned char *page)
+{
+    long offset;
+
+    offset = (long)page_id * PAGE_SIZE;
+
+    if (fseek(file, offset, SEEK_SET) != 0) {
+        return 0;
+    }
+
+    if (fwrite(page, PAGE_SIZE, 1, file) != 1) {
+        return 0;
+    }
+
+    return 1;
+}
+
 int main(void)
 {
-    char input[128];
+    Pager *pager;
+    unsigned char page[PAGE_SIZE];
+    unsigned char loaded_page[PAGE_SIZE];
 
-    while (1) {
-        printf("peanutdb> ");
+    pager = pager_open("peanut.db");
 
-        if (fgets(input, sizeof(input), stdin) == NULL) {
-            break;
-        }
-
-        if (strcmp(input, "exit\n") == 0) {
-            break;
-        }
-
-        printf("You entered: %s", input);
+    if (pager == NULL) {
+        printf("Could not open database\n");
+        return 1;
     }
+
+    memset(page, 0, PAGE_SIZE);
+    memset(loaded_page, 0, PAGE_SIZE); 
+
+    page[0] = 0xAA;
+    page[1] = 0xBB;
+    page[2] = 0xCC;
+
+    if (!pager_write_page(pager, 0, page)) {
+        printf("Could not write page\n");
+        pager_close(pager);
+        return 1;
+    }
+
+    if (!pager_read_page(pager, 0, loaded_page)) {
+        printf("Could not read page\n");
+        pager_close(pager);
+        return 1;
+    }
+
+    printf("Page count: %u\n", pager->page_count);
+
+    printf("bytes: %02X %02X %02X\n", loaded_page[0], loaded_page[1], 
+            loaded_page[2]);
+
+    pager_close(pager);
 
     return 0;
 }
