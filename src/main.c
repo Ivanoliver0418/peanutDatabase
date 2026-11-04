@@ -76,8 +76,12 @@ int write_page(FILE *file, uint32_t page_id, const unsigned char *page)
 int main(void)
 {
     Pager *pager;
-    unsigned char page[PAGE_SIZE];
-    unsigned char loaded_page[PAGE_SIZE];
+    
+    void *page0a;
+    void *page0b;
+    
+    void *page1a;
+    void *page1b;
 
     pager = pager_open("peanut.db");
 
@@ -85,30 +89,43 @@ int main(void)
         printf("Could not open database\n");
         return 1;
     }
+    page0a = get_pager(pager, 0);
 
-    memset(page, 0, PAGE_SIZE);
-    memset(loaded_page, 0, PAGE_SIZE); 
+    if (page0a == NULL) {
+        printf("Could not get page 0\n");
+        pager_close(pager);
+        return -1;
+    }
 
-    page[0] = 0xAA;
-    page[1] = 0xBB;
-    page[2] = 0xCC;
+    page0b = get_pager(pager, 0);
 
-    if (!pager_write_page(pager, 0, page)) {
-        printf("Could not write page\n");
+    if (page0b == NULL) {
+        printf("Could not get page 0 again\n");
         pager_close(pager);
         return 1;
     }
 
-    if (!pager_read_page(pager, 0, loaded_page)) {
-        printf("Could not read page\n");
+    page1a = get_pager(pager, 1);
+
+    if (page1a == NULL) {
+        printf("Could not open page 1\n");
         pager_close(pager);
         return 1;
     }
 
-    printf("Page count: %u\n", pager->page_count);
+    page1b = get_pager(pager, 1);
 
-    printf("bytes: %02X %02X %02X\n", loaded_page[0], loaded_page[1], 
-            loaded_page[2]);
+    if (page1b == NULL) {
+        printf("Could not get page 1 again\n");
+        pager_close(pager);
+        return 1;
+    }
+
+    printf("page0a address: %p\n", page0a);
+    printf("page0b address: %p\n", page0b);
+    
+    printf("page1a address: %p\n", page1a);
+    printf("page1b address: %p\n", page1b);
 
     pager_close(pager);
 
