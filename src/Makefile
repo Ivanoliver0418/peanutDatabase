@@ -6,11 +6,14 @@ CPPFLAGS = -Wall -Wextra -pedantic -I.
 
 all: main
 
-main: main.o main.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) main.o -o main
+main: main.o pager.o
+	$(CC) $(CFLAGS) $(CPPFLAGS) main.o pager.o -o main
 
-main.o: main.c main.h
+main.o: main.c main.h pager.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c main.c -o main.o
+
+pager.o: pager.c pager.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c pager.c -o pager.o
 
 clean:
 	rm -f main main.o
