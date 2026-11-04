@@ -1,14 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "pager.h"
+
 Pager *pager_open(const char *filename) 
 {
     Pager *pager;
     FILE *file;
-    long page_count;
+    long file_size;
+    uint32_t pages[TABLE_MAX_PAGES];
     
     /* Creates memory for pager */
-    pager = malloc(sizeof(pager));
+    pager = malloc(sizeof(Pager));
 
     if (pager == NULL) {
         return NULL;
@@ -34,6 +37,7 @@ Pager *pager_open(const char *filename)
         return NULL;
     }
 
+    /* Tells the current position pointer for a given file stream. */
     file_size = ftell(file);
 
     if (file_size < 0) {
@@ -44,13 +48,25 @@ Pager *pager_open(const char *filename)
 
     /* Database should have complete pages */
     if (file_size % PAGE_SIZE != 0) {
+        printf("FAILED: incomplete database page\n");
         fclose(file);
         free(pager);
         return NULL;
     }
 
     pager->file = file;
-    pager->page_count = page_count;
+    pager->page_count = (uint32_t)file_size / PAGE_SIZE;
+
+    uint32_t i;
+
+    for (i = 0; i < TABLE_MAX_PAGES; i++) {
+        pager->pages[i] = NULL;
+    }
+
+    printf("Pager opened successfully.\n");
+    printf("Page count = %u\n", pager->page_count);
+
+    return pager;
 }
 
 int pager_read_page(Pager *pager, uint32_t page_id, unsigned char *page)
@@ -58,7 +74,7 @@ int pager_read_page(Pager *pager, uint32_t page_id, unsigned char *page)
     long offset;
 
     /* page id starts from 0 */
-    if (page_id >= pager->count) {
+    if (page_id >= pager->page_count) {
         return 0;
     }
     
@@ -69,7 +85,7 @@ int pager_read_page(Pager *pager, uint32_t page_id, unsigned char *page)
         return 0;
     }
 
-    if (fread(file, PAGE_SIZE, 1, pager->file) != 1) {
+    if (fread(page, PAGE_SIZE, 1, pager->file) != 1) {
         return 0;
     }
 
@@ -81,7 +97,7 @@ int pager_write_page(Pager *pager, uint32_t page_id, const unsigned char *page)
     long offset;
 
     /* page id starts from 0 */
-    if (page_id > page_count) {
+    if (page_id > pager->page_count) {
         return 0;
     }
 
@@ -107,7 +123,7 @@ int pager_write_page(Pager *pager, uint32_t page_id, const unsigned char *page)
 void pager_close(Pager *pager)
 {
     if (pager == NULL) {
-        return NULL;
+        return;
     }
 
     if (pager->file != NULL) {
@@ -115,4 +131,76 @@ void pager_close(Pager *pager)
     }
 
     free(pager);
+}
+
+void page_init(unsigned char *page)
+{
+    memset(page, 0, PAGE_SIZE);
+
+    write_u32_le(page + PAGE_TYPE_OFFSET, PAGE_TYPE_DATA);
+
+    write_u32_le(page + PAGE_RECORD_COUNT_OFFSET, 0);
+}
+
+uint32_t page_get_type(const unsigned char *page)
+{
+    return read_u32_le(page + PAGE_TYPE_OFFSET);
+}
+
+uint32_t page_get_record_count(const unsigned char *page)
+{
+    return read_u32_le(page + PAGE_RECORD_COUNT_OFFSET);
+}
+
+void page_set_record_count(unsigned char *page, uint32_t count)
+{
+    write_u32_le(page + PAGE_RECORD_COUNT_OFFSET, count);
+}
+
+unsigned char *page_record_at(unsigned char *page, uint32_t record_number)
+{
+    return page + PAGE_HEADER_SIZE + record_number * USER_RECORD_SIZE;
+}
+
+void* get_pager(Pager* pager, uint32_t page_id) 
+{
+    if (page_id >= TABLE_MAX_PAGES) {
+        printf("Tried to fetch page number out of bounds. %d > %d\n",
+                page_id, TABLE_MAX_PAGES);
+        return NULL;
+    }
+
+    if (pager->pages[page_id] == NULL) {
+        /* Cache miss. Allocate memory and load from file. */
+        void *page;
+        long offset;
+
+        page = malloc(PAGE_SIZE);
+
+        if (page == NULL) {
+            return NULL;
+        }
+        
+        if (page_id < pager->page_count) {
+            offset = (long)page_id * PAGE_SIZE;
+            if (fseek(pager->file, offset, SEEK_SET) != 0) {
+                free(page);
+                return NULL;
+            }
+            if (fread(page, PAGE_SIZE, 1, pager->file) != 1) {
+                free(page);
+                return NULL;
+            }
+
+        } else if (page_id == pager->page_count) {
+            memset(page, 0, PAGE_SIZE);
+        } else {
+            free(page);
+            return NULL;
+        }
+
+        pager->pages[page_id] = page;
+    }
+
+    return pager->pages[page_id];
 }
