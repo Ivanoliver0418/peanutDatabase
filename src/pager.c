@@ -190,6 +190,7 @@ void* get_pager(Pager* pager, uint32_t page_id)
 
         } else if (page_id == pager->page_count) {
             memset(page, 0, PAGE_SIZE);
+            pager->page_count++;
         } else {
             free(page);
             return NULL;
