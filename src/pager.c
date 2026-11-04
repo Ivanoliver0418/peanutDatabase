@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
+#include "main.h"
 #include "pager.h"
 
 Pager *pager_open(const char *filename) 
@@ -8,7 +10,6 @@ Pager *pager_open(const char *filename)
     Pager *pager;
     FILE *file;
     long file_size;
-    uint32_t pages[TABLE_MAX_PAGES];
     
     /* Creates memory for pager */
     pager = malloc(sizeof(Pager));
@@ -97,7 +98,7 @@ int pager_write_page(Pager *pager, uint32_t page_id, const unsigned char *page)
     long offset;
 
     /* page id starts from 0 */
-    if (page_id > pager->page_count) {
+    if (page_id >= pager->page_count) {
         return 0;
     }
 
@@ -112,10 +113,6 @@ int pager_write_page(Pager *pager, uint32_t page_id, const unsigned char *page)
     }
 
     fflush(pager->file);
-
-    if (page_id == pager->page_count) {
-        pager->page_count++;
-    }
 
     return 1;
 }
@@ -136,8 +133,6 @@ void pager_close(Pager *pager)
 void page_init(unsigned char *page)
 {
     memset(page, 0, PAGE_SIZE);
-
-    write_u32_le(page + PAGE_TYPE_OFFSET, PAGE_TYPE_DATA);
 
     write_u32_le(page + PAGE_RECORD_COUNT_OFFSET, 0);
 }
@@ -174,6 +169,7 @@ void* get_pager(Pager* pager, uint32_t page_id)
         /* Cache miss. Allocate memory and load from file. */
         void *page;
         long offset;
+        printf("Cache miss: page %u\n", page_id);
 
         page = malloc(PAGE_SIZE);
 
@@ -200,6 +196,9 @@ void* get_pager(Pager* pager, uint32_t page_id)
         }
 
         pager->pages[page_id] = page;
+    } else {
+        /* Page already in RAM. */
+        printf("cache hit: page %u\n", page_id);
     }
 
     return pager->pages[page_id];
